@@ -85,12 +85,12 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
         } else {
             // Otherwise this is an existing pet, so change app bar to say "Edit Pet"
             setTitle(getString(R.string.edit_a_pet));
-        }
-        if (mCurrentPetUri != null) {
             // Initialise a loader to read the pet data from the database
             // and display the current values in the editor
             getLoaderManager().initLoader(EXISTING_PET_LOADER, null, this);
         }
+
+
 
 
         // Find all relevant views that we will need to read user input from
