@@ -16,19 +16,16 @@
 package com.example.android.pets;
 
 import android.app.LoaderManager;
-import android.app.LoaderManager.LoaderCallbacks;
 import android.content.ContentValues;
 import android.content.CursorLoader;
 import android.content.Intent;
 import android.content.Loader;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.NavUtils;
 import android.support.v7.app.AppCompatActivity;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -37,9 +34,8 @@ import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
-
 import com.example.android.pets.data.PetContract.PetsTable;
-import com.example.android.pets.data.PetDbHelper;
+
 
 /**
  * Allows user to create a new pet or edit an existing one.
@@ -90,16 +86,18 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
             // Otherwise this is an existing pet, so change app bar to say "Edit Pet"
             setTitle(getString(R.string.edit_a_pet));
         }
+        if (mCurrentPetUri != null) {
+            // Initialise a loader to read the pet data from the database
+            // and display the current values in the editor
+            getLoaderManager().initLoader(EXISTING_PET_LOADER, null, this);
+        }
 
-        // Initialise a loader to read the pet data from the database
-        // and display the current values in the editor
-        getLoaderManager().initLoader(EXISTING_PET_LOADER, null, this);
 
         // Find all relevant views that we will need to read user input from
-        mNameEditText = (EditText) findViewById(R.id.edit_pet_name);
-        mBreedEditText = (EditText) findViewById(R.id.edit_pet_breed);
-        mWeightEditText = (EditText) findViewById(R.id.edit_pet_weight);
-        mGenderSpinner = (Spinner) findViewById(R.id.spinner_gender);
+        mNameEditText = findViewById(R.id.edit_pet_name);
+        mBreedEditText = findViewById(R.id.edit_pet_breed);
+        mWeightEditText = findViewById(R.id.edit_pet_weight);
+        mGenderSpinner = findViewById(R.id.spinner_gender);
 
         setupSpinner();
     }
@@ -144,32 +142,33 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
     }
 
     /**
-     * Get user input from the editor and saves a new pet into the database.
+     * Get user input from the editor and saves a pet into the database.
      */
-    private void insertPet() {
-        // Read from input fields
-        // Use trim to eliminate leading or trailing white space
-       String nameString = mNameEditText.getText().toString().trim();
-        String breedString = mBreedEditText.getText().toString().trim();
-        String weightString = mWeightEditText.getText().toString().trim();
-        int weight = Integer.parseInt(weightString);
+    private void savePet() {
+
+            // Read from input fields
+            // Use trim to eliminate leading or trailing white space
+            String nameString = mNameEditText.getText().toString().trim();
+            String breedString = mBreedEditText.getText().toString().trim();
+            String weightString = mWeightEditText.getText().toString().trim();
+            int weight = Integer.parseInt(weightString);
 
 
-        // Old code
+            // Old code
 //        // Create database helper
 //        PetDbHelper mDbHelper = new PetDbHelper(this);
 //// Gets the data repository in write mode
 //        SQLiteDatabase db = mDbHelper.getWritableDatabase();
 
-        // Create a ContentValues object, where column names are the keys
-        // and pet attributes from the editor are the values.
-        ContentValues values = new ContentValues();
-        values.put(PetsTable.COLUMN_PET_NAME, nameString);
-        values.put(PetsTable.COLUMN_PET_BREED, breedString);
-        values.put(PetsTable.COLUMN_PET_GENDER, mGender);
-        values.put(PetsTable.COLUMN_PET_WEIGHT, weight);
+            // Create a ContentValues object, where column names are the keys
+            // and pet attributes from the editor are the values.
+            ContentValues values = new ContentValues();
+            values.put(PetsTable.COLUMN_PET_NAME, nameString);
+            values.put(PetsTable.COLUMN_PET_BREED, breedString);
+            values.put(PetsTable.COLUMN_PET_GENDER, mGender);
+            values.put(PetsTable.COLUMN_PET_WEIGHT, weight);
 
-        // Old code
+            // Old code
 //        // Insert the new row, returning the primary key value of the new row
 //        long newRowId = db.insert(PetsTable.TABLE_NAME,null, values);
 //        Log.v("CatalogActivity", "New row ID " + newRowId);
@@ -180,21 +179,38 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 //            Toast.makeText(getApplicationContext(), "New pet ID: " + newRowId,
 //                    Toast.LENGTH_SHORT).show();
 //        }
+        // Determine if this is a new or existing pet by checking if mCurrentPetUri is null
+        if (mCurrentPetUri == null) {
+            // This is a NEW pet, so insert a new pet into the provider,
+            // returning the content URI for the new pet.
+            Uri newUri = getContentResolver().insert(PetsTable.CONTENT_URI, values);
 
-        // Insert a new pet into the provider, returning the content URI for the new pet.
-        Uri newUri = getContentResolver().insert(PetsTable.CONTENT_URI, values);
-
-        // Show a toast message depending on whether or not the insertion was successful
-        if (newUri == null) {
-            // If the new content URI is null, then there was an error with the insertion.
-            Toast.makeText(this, getString(R.string.editor_insert_pet_failed),
-                    Toast.LENGTH_SHORT).show();;
+            // Show a toast message depending on whether or not the insertion was successful
+            if (newUri == null) {
+                // If the new content URI is null, then there was an error with the insertion.
+                Toast.makeText(this, getString(R.string.editor_insert_pet_failed),
+                        Toast.LENGTH_SHORT).show();
+            } else {
+                // Otherwise, the insertion was successful and we can display a toast.
+                Toast.makeText(this, getString(R.string.editor_insert_pet_successful),
+                        Toast.LENGTH_SHORT).show();
+            }
         } else {
-            // Otherwise, the insertion was successful and we can display a toast.
-            Toast.makeText(this, getString(R.string.editor_insert_pet_successful),
-                    Toast.LENGTH_SHORT).show();
-        }
+            // Otherwise this is an EXISTING pet, so update the pet with the content URI: mCurrentPetUri
+            // and pass in the new ContentValues.  Pass in null for the selection and selection args
+            // because mCurrentPetUri will already identify the correct roe in the database that
+            // we want to modify.
+            int rowsAffected = getContentResolver().update(mCurrentPetUri, values,null, null);
 
+            // Show a toast message depending on whether or not the update was successful.
+            if (rowsAffected == 0) {
+                // If no rows were affected, then there was an error with the update.
+                Toast.makeText(this, getString(R.string.editor_update_pet_failed),Toast.LENGTH_SHORT).show();
+            } else {
+                // Otherwise the update was successful and we can display a toast.
+                Toast.makeText(this, getString(R.string.editor_update_pet_successful), Toast.LENGTH_SHORT).show();
+            }
+        }
 
 
     }
@@ -214,7 +230,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
             // Respond to a click on the "Save" menu option
             case R.id.action_save:
                 // Save pet to database
-                insertPet();
+                savePet();
                 // Exit activity
                 finish();
                 return true;
@@ -233,7 +249,7 @@ public class EditorActivity extends AppCompatActivity implements LoaderManager.L
 
     @Override
     public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        // Since the edirot shows all pet attributes, define a projection that contains
+        // Since the editor shows all pet attributes, define a projection that contains
         // all columns from the pet table
         String[] projection = {
                 PetsTable._ID,

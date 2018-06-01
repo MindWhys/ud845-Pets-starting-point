@@ -76,4 +76,10 @@
 
     <!-- Title of the editor activity if you are editing an existing pet -->
     <string name="edit_a_pet">Edit Pet</string>
+
+    <!-- Toast informing user that there was a error updating the pet -->
+    <string name="editor_update_pet_failed">There was an error updating this pet</string>
+
+    <!-- Toast informing the user that pet has successfully been updated -->
+    <string name="editor_update_pet_successful">Congratulations, you have updated your pet!</string>
 </resources>
